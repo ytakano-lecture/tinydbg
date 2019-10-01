@@ -14,11 +14,89 @@
 #include <libelfin/dwarf/dwarf++.hh>
 #include <libelfin/elf/elf++.hh>
 
-void do_break_addr(int pid, long addr) {
+// command:
+//   registers
+void do_registers(int pid) {}
+
+// command:
+//   continue
+void do_continue(int pid) {}
+
+// command:
+//   step
+void do_step(int pid) {
     // implement here
 }
 
-void do_continue(int pid) {
+// command:
+//   next
+void do_next(int pid) {
+    // implement here
+}
+
+// command:
+//   finish
+void do_finish(int pid) {
+    // implement here
+}
+
+// command:
+//   break FILE:LINE
+// ex:
+//   break main.c:10
+//   then
+//   do_delete_file(pid, "main.c", 10) is called
+void do_delete_file(int pid, char *file, int line) {
+    // implement here
+}
+
+// command:
+//   break FUNCTION
+// ex:
+//   break main
+//   then
+//   do_delete_func(pid, "main") is called
+void do_delete_func(int pid, char *func) {
+    // implement here
+}
+
+// command:
+//   break ADDRESS
+// ex:
+//   break 0x40000
+//   then
+//   do_delete_addr(pid, 0x4000) is called
+void do_delete_addr(int pid, long addr) {
+    // implement here
+}
+
+// command:
+//   break FILE:LINE
+// ex:
+//   break main.c:10
+//   then
+//   do_break_file(pid, "main.c", 10) is called
+void do_break_file(int pid, char *file, int line) {
+    // implement here
+}
+
+// command:
+//   break FUNCTION
+// ex:
+//   break main
+//   then
+//   do_break_func(pid, "main") is called
+void do_break_func(int pid, char *func) {
+    // implement here
+}
+
+// command:
+//   break ADDRESS
+// ex:
+//   break 0x40000
+//   then
+//   do_break_addr(pid, 0x4000) is called
+void do_break_addr(int pid, long addr) {
     // implement here
 }
 
@@ -35,29 +113,68 @@ char *get_arg() {
     return NULL;
 }
 
+void parse_arg(long *addr, char **left, char **right) {
+    char *arg = get_arg();
+
+    if (strlen(arg) > 1 && arg[0] == '0' && arg[1] == 'x') {
+        *addr = strtol(arg, NULL, 16);
+        *left = NULL;
+        *right = NULL;
+    } else {
+        *left = strtok(arg, ":");
+        *right = strtok(NULL, " ");
+    }
+}
+
 void do_command(int pid, char *line) {
     char *cmd = strtok(line, " ");
+    if (cmd == NULL)
+        goto err;
+
     if (strcmp(cmd, "continue") == 0) {
         do_continue(pid);
-    } else if (strcmp(cmd, "break") == 0) {
-        char *arg = get_arg();
-        if (strlen(arg) < 3) {
-            printf("invalid argument\n");
-            return;
-        }
-        if (!(arg[0] == '0' && arg[1] == 'x')) {
-            long addr = strtol(arg, NULL, 16);
-            do_break_addr(pid, addr);
-            return;
+    } else if (strcmp(cmd, "step") == 0) {
+        do_step(pid);
+    } else if (strcmp(cmd, "next") == 0) {
+        do_next(pid);
+    } else if (strcmp(cmd, "finish") == 0) {
+        do_finish(pid);
+    } else if (strcmp(cmd, "registers") == 0) {
+        do_registers(pid);
+    } else if (strcmp(cmd, "delete") == 0) {
+        char *left, *right;
+        long addr;
+        parse_arg(&addr, &left, &right);
+        if (right == NULL) {
+            if (left == NULL) {
+                do_delete_addr(pid, addr);
+            } else {
+                do_delete_func(pid, left);
+            }
         } else {
-            printf("invalid argument\n");
+            do_delete_file(pid, left, atoi(right));
+        }
+    } else if (strcmp(cmd, "break") == 0) {
+        char *left, *right;
+        long addr;
+        parse_arg(&addr, &left, &right);
+        if (right == NULL) {
+            if (left == NULL) {
+                do_break_addr(pid, addr);
+            } else {
+                do_break_func(pid, left);
+            }
+        } else {
+            do_break_file(pid, left, atoi(right));
         }
     } else {
+    err:
         printf("command:\n"
                "  continue\n"
                "  step\n"
                "  next\n"
                "  finish\n"
+               "  registers\n"
                "  break\n"
                "  delete\n");
     }
@@ -90,10 +207,12 @@ void completion(const char *buf, linenoiseCompletions *lc) {
         linenoiseAddCompletion(lc, "break ");
         break;
     case 'd':
-        linenoiseAddCompletion(lc, "delete");
+        linenoiseAddCompletion(lc, "delete ");
         break;
     case 'f':
         linenoiseAddCompletion(lc, "finish");
+    case 'r':
+        linenoiseAddCompletion(lc, "registers");
         break;
     default:;
     }
